@@ -1,11 +1,17 @@
 package models.SearchEventsBody;
 
-import java.util.ArrayList;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-public class Root{
-    public String dateFrom;
-    public String dateTo;
-    public ArrayList<Integer> sportIds;
-    public int champId;
+import java.util.List;
+
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor(force = true)
+public class Root {
+    private final String dateFrom;
+    private final String dateTo;
+    private final List<Integer> sportIds;
+    private final Integer champId;
 }
-

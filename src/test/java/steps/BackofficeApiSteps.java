@@ -1,139 +1,150 @@
-import io.restassured.http.ContentType;
-import io.restassured.response.Response;
+package steps;
 
-import static io.restassured.RestAssured.given;
+import com.altenar.sb2.backoffice.model.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
+import io.qameta.allure.Step;
+import models.Date.GenerateFormatDate;
 
-public class FirstApiSteps {
+import java.util.ArrayList;
+import java.util.List;
 
-    public Response getHighlights() {
-        Response response = given()
-                .queryParam("timezoneOffset", "180")
-                .queryParam("langId", 8)
-                .queryParam("skinName", "betsonic")
-                .queryParam("configid", 1)
-                .queryParam("culture", "en-gb")
-                .queryParam("countryCode", "RU")
-                .queryParam("deviceTуре", "Desktop")
-                .queryParam("numformat", "en")
-                .queryParam("integration", "skintest")
-                .queryParam( "sportId", 66)
-                .queryParam("showALT.Events", false)
-                .queryParam("count", 10)
-                .when()
-                .get("https://sb2frontend-altenar2-stage.biahosted.com/api/Sportsbook/GetLivenow")
-                .then()
-                .statusCode(200)
-                .contentType("application/json")
-                .extract()
-                .response();
-        return response;
+import static helper.HelpMethodClass.*;
+import static requests.BackofficeRequests.*;
+
+public class BackofficeApiSteps {
+    @Step("Get championships for cricket")
+    public static EventSportItemListApiResult getCricketChampionships(
+            List<Integer> sportIds
+    ) throws JsonProcessingException {
+        GetHighlightsChampionshipsRequest requestBody = new GetHighlightsChampionshipsRequest(
+                GenerateFormatDate.getCurrentDateTime(),
+                GenerateFormatDate.getNextYearDateTime(),
+                sportIds
+        );
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JodaModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        System.out.println(mapper.writeValueAsString(requestBody));
+
+        return getChampionships(requestBody);
     }
 
-    public static Response getBackOffice() {
-        Response response = given()
-                .queryParam("ReturnUrl", "%2F")
-                .when()
-                .get("https://sb2admin-altenar2-stage.biahosted.com/Account/Login")
-                .then()
-                .statusCode(200)
-                .contentType("text/html")
-                .extract().response();
-        return response;
+    @Step("Extract sports for update config from championships")
+    public static List<SportRequestItem> getSports(
+            EventSportItemListApiResult championships
+    ) {
+        List<SportRequestItem> sports = new ArrayList<>();
+
+        for (var sport : championships.getData()) {
+            sports.add(new SportRequestItem(
+                    sport.getSportId(),
+                    true,
+                    1
+            ));
+        }
+        return sports;
     }
 
-    public static Response backofficeLogin() {
-        Response response = given()
-                .formParam("UserName", "test_user_qa1")
-                .formParam("Password", "12vDEO~lTE$")
-                .formParam("ReturnUrl", "/")
-                .formParam("DeviceSecret", "00000000-0000-0000-0000-000000000000")
-                .formParam("__RequestVerificationToken", "CfDJ8L6vrdOuk2tAllXaBx7HLKpiz6PCIXvfCcoi13vb46gsWVTUlR5hbNoIn-Hr2Z5HesfauG0Myc9s1Cd4wyR7mV_kQZ6yerh93ZL9GpEo4Vc1W_CDPq5sZZ9Dff2TPJR4MXvqeUU5_TEIQAoi-3U3Nus")
-                .when()
-                .post("https://sb2admin-altenar2-stage.biahosted.com/Account/Login")
-                .then()
-                .statusCode(302)
-                .extract().response();
-        return response;
+    @Step("Get languagesTabs")
+    public static List<LanguageTabRequestItem> getLanguagesTabs(
+            int configId
+    ) {
+        return getLanguageTab(configId);
     }
 
-    public static Response getBackOfficeWithSkintestConfig() {
-        Response response = given()
-                .queryParam("ReturnUrl", "%2F")
-                .cookies(FirstApiTest.cookie)
-                .contentType(ContentType.HTML)
-                .when()
-                .get("https://sb2admin-altenar2-stage.biahosted.com/v2/highlights/configs/126")
-                .then()
-                .statusCode(200)
-                .extract().response();
-        return response;
+    @Step("Add event to events")
+    public static void addEvents (
+            EventSportItemListApiResult championships,
+            List<Long> eventIds,
+            List<HighlightsEventRequestItem> events,
+            List<Integer> sportIds,
+            boolean isPromo,
+            boolean isSafe,
+            int order
+    ) throws Exception {
+        long eventId = getFirstEventId(championships, sportIds);
+        addInEventIds(eventId, eventIds);
+        addInEvents(events, eventId, order, isPromo, isSafe);
     }
 
-    public static Response getEvents(String requestBody) {
-        Response response = given()
-                .cookies(FirstApiTest.cookie)
-                .contentType(ContentType.JSON)
-                .body(requestBody)
-                .when()
-                .post("https://sb2admin-altenar2-stage.biahosted.com/Api/HighlightsManager/SearchEvents")
-                .then()
-                .statusCode(200)
-                .extract().response();
-        return response;
+    @Step("Update config with event and sports")
+    public static ApiResult updateConfiguration (
+            int configId,
+            List<SportRequestItem> sports,
+            List<HighlightsEventRequestItem> defaultEvents,
+            List<LanguageTabRequestItem> languages
+    ) {
+        UpdateHighlightsConfigRequest newConfig = new UpdateHighlightsConfigRequest(
+                defaultEvents,
+                languages,
+                sports,
+                configId
+        );
+
+        return updateConfig(newConfig);
     }
 
-    public static Response getSports() {
-        Response response = given()
-                .cookies(FirstApiTest.cookie)
-                .contentType(ContentType.JSON)
-                .when()
-                .get("https://sb2admin-altenar2-stage.biahosted.com/Api/HighlightsManager/SportsList")
-                .then()
-                .statusCode(200)
-                .extract().response();
-        return response;
+    @Step("Add first language to LanguagesTabs")
+    public static void addFirstLanguageToLanguagesTabs(
+            List<HighlightsEventRequestItem> events,
+            List<Integer> languageIds,
+            List<LanguageTabRequestItem> languageTabs
+    ) throws Exception {
+        int languageId = getFirstLanguageId();
+        addElementToList(languageId, languageIds);
+
+        LanguageTabRequestItem languageTab = createNewLanguageTab(languageId, events);
+        addElementToList(languageTab, languageTabs);
     }
 
-    public static Response getChampionships(String requestBody) {
-//        String requestBody = String.format(
-//                "{\"SportIds\":[%d],\"dateFrom\":\"%s\",\"dateTo\":\"%s\"}",
-//                74, "2025-06-20 10:54:05", "2026-06-20 23:59:59"
-//        );
-
-        Response response = given()
-                .cookies(FirstApiTest.cookie)
-                .contentType(ContentType.JSON)
-                .body(requestBody)
-                .when()
-                .post("https://sb2admin-altenar2-stage.biahosted.com/Api/HighlightsManager/GetChampionships")
-                .then()
-                .statusCode(200)
-                .extract().response();
-        return response;
+    @Step("Remove language from LanguagesTabs")
+    public static void removeLanguageFromLanguagesTabs (
+            int removeLanguageId,
+            List<Integer> languageIds,
+            List<LanguageTabRequestItem> languageTabs
+    )  {
+        languageIds.removeIf(languageId -> languageId.equals(removeLanguageId));
+        languageTabs.removeIf(lang -> Integer.valueOf(removeLanguageId).equals(lang.getLanguageId()));
     }
 
-    public static Response getLanguages() {
-        Response response = given()
-                .cookies(FirstApiTest.cookie)
-                .contentType(ContentType.JSON)
-                .when()
-                .get("https://sb2admin-altenar2-stage.biahosted.com/Api/HighlightsManager/LanguagesList")
-                .then()
-                .statusCode(200)
-                .extract().response();
-        return response;
+    @Step("Remove first event from LanguagesTabs")
+    public static void removeFirstEventFromLanguagesTabs (
+            List<LanguageTabRequestItem> languageTabs
+    ) {
+//        if (languageTabs.isEmpty()) {
+//            return;
+//        }
+//
+//        if (languageTabs.getFirst().getHighlightsEvents().isEmpty()) {
+//            return;
+//        }
+
+        languageTabs.forEach(lang ->
+                lang.getHighlightsEvents().removeFirst()
+        );
     }
 
-    public static Response updateConfig(String requestBody) {
-        Response response = given()
-                .cookies(FirstApiTest.cookie)
-                .contentType(ContentType.JSON)
-                .body(requestBody)
-                .when()
-                .post("https://sb2admin-altenar2-stage.biahosted.com/Api/HighlightsManager/UpdateConfig")
-                .then()
-                .statusCode(200)
-                .extract().response();
-        return response;
+    @Step("Remove events")
+    public static void removeEvents (
+            List<Long> eventIds,
+            List<HighlightsEventRequestItem> events
+
+    )  {
+        eventIds.clear();
+        events.clear();
+    }
+
+    @Step("Remove sports")
+    public static void removeSports (
+            List<Integer> sportIds,
+            List<SportRequestItem> sports
+
+    )  {
+        sportIds.clear();
+        sports.clear();
     }
 }
