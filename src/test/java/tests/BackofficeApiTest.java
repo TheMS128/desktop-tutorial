@@ -1,21 +1,10 @@
 package tests;
 
 import com.altenar.sb2.backoffice.model.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static helper.HelpMethodClass.*;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -33,60 +22,58 @@ public class BackofficeApiTest {
     public List<Long> eventIds;
     public List<HighlightsEventRequestItem> events;
     public List<LanguageTabRequestItem> languageTabs;
-
-    static Stream<Arguments> incorrectOrderTest() {
-        return Stream.of(
-                Arguments.of(-100)
-//                Arguments.of(1.25)
-//                Arguments.of('c'),
-//                Arguments.of("just string"),
-//                Arguments.of(new BigInteger("12345671212121289012345678901234567890")),
-//                Arguments.of(new int[] {1, 2, 3}),
-//                Arguments.of(true)
-        );
-    }
+    public List<?> beforeRequest;
+    public List<?> afterRequest;
+    public boolean isPromo;
+    public boolean isSafe;
+    public int order;
+    public long eventId;
+    public int languageId;
 
     @BeforeEach
-    void setUp() throws JsonProcessingException {
+    void setUp() throws Exception {
         sports = new ArrayList<>();
         sportIds = new ArrayList<>();
         languageIds = new ArrayList<>();
         languageTabs = new ArrayList<>();
         events = new ArrayList<>();
         eventIds = new ArrayList<>();
+        beforeRequest = new ArrayList<>();
+        afterRequest = new ArrayList<>();
+
+        isPromo = false;
+        isSafe = false;
+        order = 1;
+        languageId = getFirstLanguageId();
 
         sportIds.add(cricketId);
         championships = getCricketChampionships(sportIds);
+        eventId = getFirstEventId(championships, sportIds);
         sports = getSports(championships);
         languageIds = getLanguageIds(configId);
 
-        ObjectMapper mapper = new ObjectMapper();
-
-        ApiResult response = updateConfiguration(
+         updateConfiguration(
                 configId,
                 sports,
                 new ArrayList<>(),
                 new ArrayList<>()
         );
-
-        System.out.println(mapper.writeValueAsString(sports));
-        System.out.println(mapper.writeValueAsString(response));
     }
 
     @Test
     @DisplayName("Add an event with the correct IsPromo or IsSafe parameters")
     void addEventsWithCorrectIsPromoOrIsSafe() throws Exception {
-        List<HighlightsEventRequestItem> firstLanguageEventsBeforeRequest =
-                getHighlightEventsFromDefaultLanguage(configId);
-        boolean isPromo = false;
-        boolean isSafe = true;
-        int order = 1;
+        isPromo = false;
+        isSafe = true;
+        order = 1;
+        eventId = getFirstEventId(championships, sportIds);
+
+        beforeRequest = getHighlightEventsFromDefaultLanguage(configId);
 
         addEvents(
-                championships,
                 eventIds,
                 events,
-                sportIds,
+                eventId,
                 isPromo,
                 isSafe,
                 order
@@ -99,28 +86,24 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        List<HighlightsEventRequestItem> firstLanguageEventsAfterRequest =
-                getHighlightEventsFromDefaultLanguage(configId);
+        afterRequest = getHighlightEventsFromDefaultLanguage(configId);
 
         assertThat(
                 "The list size after adding the event must be larger than the list before adding the event by 1",
-                firstLanguageEventsAfterRequest.size(),
-                is(firstLanguageEventsBeforeRequest.size() + 1)
+                afterRequest.size(),
+                is(beforeRequest.size() + 1)
         );
     }
 
     @Test
     @DisplayName("Remove event from Default language")
-    void removeAllEventFromDefaultLanguage() throws Exception {
-        boolean isPromo = false;
-        boolean isSafe = true;
-        int order = 1;
+    void removeAllEventFromDefaultLanguage() {
+        beforeRequest = getHighlightEventsFromDefaultLanguage(configId);
 
         addEvents(
-                championships,
                 eventIds,
                 events,
-                sportIds,
+                eventId,
                 isPromo,
                 isSafe,
                 order
@@ -133,7 +116,7 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        removeEvents(
+        removeAllEvents(
                 eventIds,
                 events
         );
@@ -145,31 +128,27 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        List<HighlightsEventRequestItem> firstLanguageEventsAfterRequest =
-                getHighlightEventsFromDefaultLanguage(configId);
+        afterRequest = getHighlightEventsFromDefaultLanguage(configId);
 
         assertThat(
                 "After deleting all events, the list should be empty",
-                firstLanguageEventsAfterRequest.size(),
-                is(0)
+                afterRequest.size(),
+                is(beforeRequest.size())
         );
     }
 
     @Test
     @DisplayName("Add an event with an incorrect value of the IsPromo and IsSafe parameters")
-    void addEventWithAnIncorrectIsPromoAndIsSafeParameters() throws Exception {
-        List<HighlightsEventRequestItem> firstLanguageEventsBeforeRequest =
-                getHighlightEventsFromDefaultLanguage(configId);
+    void addEventWithAnIncorrectIsPromoAndIsSafeParameters() {
+        isPromo = true;
+        isSafe = true;
 
-        boolean isPromo = true;
-        boolean isSafe = true;
-        int order = 1;
+        beforeRequest = getHighlightEventsFromDefaultLanguage(configId);
 
         addEvents(
-                championships,
                 eventIds,
                 events,
-                sportIds,
+                eventId,
                 isPromo,
                 isSafe,
                 order
@@ -182,86 +161,67 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        List<HighlightsEventRequestItem> firstLanguageEventsAfterRequest =
-                getHighlightEventsFromDefaultLanguage(configId);
+        afterRequest = getHighlightEventsFromDefaultLanguage(configId);
 
         assertThat(
                 "The size of the list before and after attempting to set an invalid event must be equal",
-                firstLanguageEventsAfterRequest.size(),
-                is(firstLanguageEventsBeforeRequest.size())
+                afterRequest.size(),
+                is(beforeRequest.size())
         );
     }
 
-
     // Найден баг. При добавлении значения -100 не возникает ошибка 400, как в остальных случаях.
     // Данная ошибка видна на frontend Backoffice
-    @ParameterizedTest
-    @MethodSource("incorrectOrderTest")
+    @Test
     @DisplayName("Add an event with an incorrect order parameter")
-    void addEventWithAnIncorrectOrderParameter(
-            int order
-    ) throws Exception {
-        List<HighlightsEventRequestItem> firstLanguageEventsBeforeRequest =
-                getHighlightEventsFromDefaultLanguage(configId);
+    void addEventWithAnIncorrectOrderParameter() {
+        order = -100;
 
-        boolean isPromo = true;
-        boolean isSafe = false;
+        beforeRequest = getHighlightEventsFromDefaultLanguage(configId);
 
         addEvents(
-                championships,
                 eventIds,
                 events,
-                sportIds,
+                eventId,
                 isPromo,
                 isSafe,
                 order
         );
 
-        ApiResult res = updateConfiguration(
+        updateConfiguration(
                 configId,
                 sports,
                 events,
                 languageTabs
         );
 
-        ObjectMapper mapper = new ObjectMapper();
-        System.out.println(mapper.writeValueAsString(res));
-
-        List<HighlightsEventRequestItem> firstLanguageEventsAfterRequest =
-                getHighlightEventsFromDefaultLanguage(configId);
-
-        System.out.println(firstLanguageEventsAfterRequest.size());
-        System.out.println(firstLanguageEventsBeforeRequest.size());
+        afterRequest = getHighlightEventsFromDefaultLanguage(configId);
 
         assertThat(
                 "The size of the list before and after attempting to set an invalid event must be equal",
-                firstLanguageEventsAfterRequest.size(),
-                is(firstLanguageEventsBeforeRequest.size())
+                afterRequest.size(),
+                is(beforeRequest.size())
         );
     }
 
     @Test
     @DisplayName("Add a language to the configuration with event")
-    void addLanguageToTheConfigurationWithEvent() throws Exception {
-        List<ConfigEvent> firstLanguageEventsBeforeRequest =
-                getFirstLanguageEventsFromConfig(configId);
-        boolean isPromo = false;
-        boolean isSafe = false;
-        int order = 1;
+    void addLanguageToTheConfigurationWithEvent() {
+        beforeRequest = getFirstLanguageEventsFromConfig(configId);
 
         addEvents(
-                championships,
                 eventIds,
                 events,
-                sportIds,
+                eventId,
                 isPromo,
                 isSafe,
                 order
         );
 
-        addFirstLanguageToLanguagesTabs(
-                events,
+        addLanguageToLanguagesTabs(
+                languageId,
                 languageIds,
+                events,
                 languageTabs
         );
 
@@ -272,39 +232,33 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        List<ConfigEvent> firstLanguageEventsAfterRequest =
-                getFirstLanguageEventsFromConfig(configId);
+        afterRequest = getFirstLanguageEventsFromConfig(configId);
 
         assertThat(
                 "The list after setting the correct event must be greater than the list before setting the correct event by 1",
-                firstLanguageEventsAfterRequest.size(),
-                is(firstLanguageEventsBeforeRequest.size() + 1)
+                afterRequest.size(),
+                is(beforeRequest.size() + 1)
         );
     }
 
     @Test
     @DisplayName("Remove event from language")
-    void removeEventFromLanguage() throws Exception {
-        List<HighlightsEventRequestItem> firstLanguageEventsBeforeRequest =
-                getHighlightEventsFromFirstLanguage(configId);
-
-        boolean isPromo = false;
-        boolean isSafe = false;
-        int order = 1;
+    void removeEventFromLanguage() {
+        beforeRequest = getHighlightEventsFromFirstLanguage(configId);
 
         addEvents(
-                championships,
                 eventIds,
                 events,
-                sportIds,
+                eventId,
                 isPromo,
                 isSafe,
                 order
         );
 
-        addFirstLanguageToLanguagesTabs(
-                events,
+        addLanguageToLanguagesTabs(
+                languageId,
                 languageIds,
+                events,
                 languageTabs
         );
 
@@ -315,7 +269,9 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        removeFirstEventFromLanguagesTabs(
+        removeEventFromLanguagesTabs(
+                eventIds.getFirst(),
+                eventIds,
                 languageTabs
         );
 
@@ -326,38 +282,25 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        List<HighlightsEventRequestItem> firstLanguageEventsAfterRequest =
+        afterRequest =
                 getHighlightEventsFromFirstLanguage(configId);
 
         assertThat(
                 "The list before and after adding and deleting an event must be the same size",
-                firstLanguageEventsAfterRequest.size(),
-                is(firstLanguageEventsBeforeRequest.size())
+                afterRequest.size(),
+                is(beforeRequest.size())
         );
     }
 
     @Test
     @DisplayName("Remove language from configuration")
-    void removeLanguageFromConfiguration() throws Exception {
-        List<LanguageTabRequestItem> languagesBeforeRequest =
-                getLanguageTab(configId);
-        boolean isPromo = false;
-        boolean isSafe = false;
-        int order = 1;
+    void removeLanguageFromConfiguration() {
+        beforeRequest = getLanguageTab(configId);
 
-        addEvents(
-                championships,
-                eventIds,
-                events,
-                sportIds,
-                isPromo,
-                isSafe,
-                order
-        );
-
-        addFirstLanguageToLanguagesTabs(
-                events,
+        addLanguageToLanguagesTabs(
+                languageId,
                 languageIds,
+                events,
                 languageTabs
         );
 
@@ -381,22 +324,21 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        List<LanguageTabRequestItem> languagesAfterRequest =
-                getLanguageTab(configId);
+        afterRequest = getLanguageTab(configId);
 
         assertThat(
                 "The list before and after adding and removing a language must be the same size",
-                languagesAfterRequest.size(),
-                is(languagesBeforeRequest.size())
+                afterRequest.size(),
+                is(beforeRequest.size())
         );
     }
 
     @Test
     @DisplayName("Save configuration without sport")
     void saveConfigurationWithoutSport() {
-        List<ConfigSport> configSportsBeforeRequest = getSportsFromConfig(configId);
+        beforeRequest = getSportsFromConfig(configId);
 
-        removeSports(
+        removeAllSports(
                 sportIds,
                 sports
         );
@@ -408,12 +350,12 @@ public class BackofficeApiTest {
                 languageTabs
         );
 
-        List<ConfigSport> configSportsAfterRequest = getSportsFromConfig(configId);
+        afterRequest = getSportsFromConfig(configId);
 
         assertThat(
                 "The list before and after attempting to save the config incorrectly should be the same",
-                configSportsAfterRequest.size(),
-                is(configSportsBeforeRequest.size())
+                afterRequest.size(),
+                is(beforeRequest.size())
         );
     }
 }

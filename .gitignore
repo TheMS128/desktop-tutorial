@@ -40,3 +40,7 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+swagger_coverage_outputs
+swagger-coverage-report.html
+swagger-coverage-results.json

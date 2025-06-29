@@ -12,6 +12,7 @@ version = "1.0-SNAPSHOT"
 repositories {
     mavenCentral()
     gradlePluginPortal()
+    maven { url = uri("https://dl.bintray.com/viclovsky/maven") }
 }
 
 dependencies {
@@ -30,7 +31,8 @@ dependencies {
     implementation("com.google.code.gson:gson:2.13.1")
     implementation("joda-time:joda-time:2.14.0")
     implementation("org.openapitools:jackson-databind-nullable:0.2.6")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-joda:2.19.1")
+
+    implementation("com.github.viclovsky:swagger-coverage-rest-assured:1.5.0")
 }
 
 tasks.test {
@@ -67,7 +69,6 @@ tasks.register<GenerateTask>("openApiGenerateBackoffice") {
     )
     configOptions.set(
         mapOf(
-            "dateLibrary" to "joda",
             "serializationLibrary" to "jackson",
             "interfaceOnly" to "true",
             "additionalModelTypeAnnotations" to "@lombok.Data"

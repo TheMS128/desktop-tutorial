@@ -1,12 +1,9 @@
 package steps;
 
 import com.altenar.sb2.backoffice.model.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.joda.JodaModule;
 import io.qameta.allure.Step;
 import models.Date.GenerateFormatDate;
+import models.GetChampionsBody.GetChampionshipsBody;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,17 +15,12 @@ public class BackofficeApiSteps {
     @Step("Get championships for cricket")
     public static EventSportItemListApiResult getCricketChampionships(
             List<Integer> sportIds
-    ) throws JsonProcessingException {
-        GetHighlightsChampionshipsRequest requestBody = new GetHighlightsChampionshipsRequest(
-                GenerateFormatDate.getCurrentDateTime(),
-                GenerateFormatDate.getNextYearDateTime(),
-                sportIds
+    ) {
+        GetChampionshipsBody requestBody = new GetChampionshipsBody(
+                sportIds,
+                GenerateFormatDate.getCurrentDate(),
+                GenerateFormatDate.getNextYearDate()
         );
-
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JodaModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        System.out.println(mapper.writeValueAsString(requestBody));
 
         return getChampionships(requestBody);
     }
@@ -41,9 +33,9 @@ public class BackofficeApiSteps {
 
         for (var sport : championships.getData()) {
             sports.add(new SportRequestItem(
-                    sport.getSportId(),
+                    sports.size() + 1,
                     true,
-                    1
+                    sport.getSportId()
             ));
         }
         return sports;
@@ -58,45 +50,42 @@ public class BackofficeApiSteps {
 
     @Step("Add event to events")
     public static void addEvents (
-            EventSportItemListApiResult championships,
             List<Long> eventIds,
             List<HighlightsEventRequestItem> events,
-            List<Integer> sportIds,
+            long eventId,
             boolean isPromo,
             boolean isSafe,
             int order
-    ) throws Exception {
-        long eventId = getFirstEventId(championships, sportIds);
+    ) {
         addInEventIds(eventId, eventIds);
         addInEvents(events, eventId, order, isPromo, isSafe);
     }
 
     @Step("Update config with event and sports")
-    public static ApiResult updateConfiguration (
+    public static void updateConfiguration (
             int configId,
             List<SportRequestItem> sports,
-            List<HighlightsEventRequestItem> defaultEvents,
+            List<HighlightsEventRequestItem> events,
             List<LanguageTabRequestItem> languages
     ) {
         UpdateHighlightsConfigRequest newConfig = new UpdateHighlightsConfigRequest(
-                defaultEvents,
+                events,
                 languages,
                 sports,
                 configId
         );
 
-        return updateConfig(newConfig);
+        updateConfig(newConfig);
     }
 
     @Step("Add first language to LanguagesTabs")
-    public static void addFirstLanguageToLanguagesTabs(
-            List<HighlightsEventRequestItem> events,
+    public static void addLanguageToLanguagesTabs(
+            int languageId,
             List<Integer> languageIds,
+            List<HighlightsEventRequestItem> events,
             List<LanguageTabRequestItem> languageTabs
-    ) throws Exception {
-        int languageId = getFirstLanguageId();
+    ) {
         addElementToList(languageId, languageIds);
-
         LanguageTabRequestItem languageTab = createNewLanguageTab(languageId, events);
         addElementToList(languageTab, languageTabs);
     }
@@ -106,44 +95,37 @@ public class BackofficeApiSteps {
             int removeLanguageId,
             List<Integer> languageIds,
             List<LanguageTabRequestItem> languageTabs
-    )  {
+    ) {
         languageIds.removeIf(languageId -> languageId.equals(removeLanguageId));
         languageTabs.removeIf(lang -> Integer.valueOf(removeLanguageId).equals(lang.getLanguageId()));
     }
 
-    @Step("Remove first event from LanguagesTabs")
-    public static void removeFirstEventFromLanguagesTabs (
+    @Step("Remove event from LanguagesTabs")
+    public static void removeEventFromLanguagesTabs (
+            long removeEventId,
+            List<Long> eventIds,
             List<LanguageTabRequestItem> languageTabs
     ) {
-//        if (languageTabs.isEmpty()) {
-//            return;
-//        }
-//
-//        if (languageTabs.getFirst().getHighlightsEvents().isEmpty()) {
-//            return;
-//        }
-
+        eventIds.removeIf(eventId -> eventId.equals(removeEventId));
         languageTabs.forEach(lang ->
-                lang.getHighlightsEvents().removeFirst()
+                lang.getHighlightsEvents().removeIf(eventId -> eventId.getEventId().equals(removeEventId))
         );
     }
 
-    @Step("Remove events")
-    public static void removeEvents (
+    @Step("Remove all events")
+    public static void removeAllEvents (
             List<Long> eventIds,
             List<HighlightsEventRequestItem> events
-
-    )  {
+    ) {
         eventIds.clear();
         events.clear();
     }
 
-    @Step("Remove sports")
-    public static void removeSports (
+    @Step("Remove all sports")
+    public static void removeAllSports (
             List<Integer> sportIds,
             List<SportRequestItem> sports
-
-    )  {
+    ) {
         sportIds.clear();
         sports.clear();
     }

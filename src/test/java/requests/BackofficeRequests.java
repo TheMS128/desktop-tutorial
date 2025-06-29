@@ -1,25 +1,30 @@
 package requests;
 
 import com.altenar.sb2.backoffice.model.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.viclovsky.swagger.coverage.CoverageOutputWriter;
+import com.github.viclovsky.swagger.coverage.FileSystemOutputWriter;
+import com.github.viclovsky.swagger.coverage.SwaggerCoverageRestAssured;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import models.GetChampionsBody.GetChampionshipsBody;
+import models.SearchEventsBody.SearchEventsBody;
 
+import java.nio.file.Paths;
 import java.util.Map;
-import java.util.Objects;
 
 import static io.restassured.RestAssured.given;
 import static util.ConfigLoader.getPassword;
 import static util.ConfigLoader.getUsername;
 
 public class BackofficeRequests {
-    private static final Logger log = LoggerFactory.getLogger(BackofficeRequests.class);
-    public static Map<String, String> cookie;
+    private static Map<String, String> cookie;
+    private static SwaggerCoverageRestAssured filter;
+    private static final String pathToSwaggerCoverage = "swagger_coverage_outputs";
 
     static {
         RestAssured.baseURI = "https://sb2admin-altenar2-stage.biahosted.com";
+        CoverageOutputWriter writer = new FileSystemOutputWriter(Paths.get(pathToSwaggerCoverage));
+        filter = new SwaggerCoverageRestAssured(writer);
         setCookies();
     }
 
@@ -28,6 +33,7 @@ public class BackofficeRequests {
                 .formParam("UserName", getUsername())
                 .formParam("Password", getPassword())
                 .formParam("ReturnUrl", "/")
+                .filter(filter)
             .when()
                 .post("/Account/Login")
             .then()
@@ -40,6 +46,7 @@ public class BackofficeRequests {
         return given()
                 .cookies(cookie)
                 .contentType(ContentType.JSON)
+                .filter(filter)
             .when()
                 .get("/Api/HighlightsManager/LanguagesList")
             .then()
@@ -53,6 +60,7 @@ public class BackofficeRequests {
                 .cookies(cookie)
                 .contentType(ContentType.JSON)
                 .queryParam("configId", Integer.toString(configId))
+                .filter(filter)
             .when()
                 .get("Api/HighlightsManager/GetConfigSettings")
             .then()
@@ -61,26 +69,26 @@ public class BackofficeRequests {
                 .as(HighlightsConfigSettingsApiResult.class);
     }
 
-    public static EventSportItemListApiResult getChampionships(GetHighlightsChampionshipsRequest requestBody) {
+    public static EventSportItemListApiResult getChampionships(GetChampionshipsBody requestBody) {
         return given()
                 .cookies(cookie)
                 .contentType(ContentType.JSON)
                 .body(requestBody)
-                .log().all()
+                .filter(filter)
             .when()
                 .post("/Api/HighlightsManager/GetChampionships")
             .then()
                 .statusCode(200)
-                .log().all()
                 .extract()
                 .as(EventSportItemListApiResult.class);
     }
 
-    public static EventCandidateItemListApiResult getEvents(models.SearchEventsBody.Root requestBody) {
+    public static EventCandidateItemListApiResult getEvents(SearchEventsBody requestBody) {
         return given()
                 .cookies(cookie)
                 .contentType(ContentType.JSON)
                 .body(requestBody)
+                .filter(filter)
             .when()
                 .post("/Api/HighlightsManager/SearchEvents")
             .then()
@@ -89,15 +97,13 @@ public class BackofficeRequests {
                 .as(EventCandidateItemListApiResult.class);
     }
 
-    public static ApiResult updateConfig(UpdateHighlightsConfigRequest requestBody) {
-        return given()
+    public static void updateConfig(UpdateHighlightsConfigRequest requestBody) {
+        given()
                 .cookies(cookie)
                 .contentType(ContentType.JSON)
                 .body(requestBody)
+                .filter(filter)
             .when()
-                .post("/Api/HighlightsManager/UpdateConfig")
-            .then()
-                .extract()
-                .as(ApiResult.class);
+                .post("/Api/HighlightsManager/UpdateConfig");
     }
 }

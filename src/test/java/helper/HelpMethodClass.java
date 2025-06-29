@@ -2,6 +2,7 @@ package helper;
 
 import com.altenar.sb2.backoffice.model.*;
 import models.Date.GenerateFormatDate;
+import models.SearchEventsBody.SearchEventsBody;
 import requests.BackofficeRequests;
 
 import java.util.ArrayList;
@@ -107,7 +108,7 @@ public class HelpMethodClass {
             EventSportItemListApiResult championships,
             List<Integer> sportIds
     ) throws Exception {
-        models.SearchEventsBody.Root requestBody = new models.SearchEventsBody.Root(
+        SearchEventsBody requestBody = new SearchEventsBody(
                 GenerateFormatDate.getCurrentDate(),
                 GenerateFormatDate.getNextYearDate(),
                 sportIds,
@@ -151,13 +152,6 @@ public class HelpMethodClass {
         LanguageItemListApiResult languages = BackofficeRequests.getLanguages();
         List<LanguageItem> languagesData = languages.getData();
         return getFirstElement(languagesData).getLanguageId();
-    }
-
-    public static void addLanguageIdToLanguageIds(
-            int languageId,
-            List<Integer> languageIds
-    ) {
-        languageIds.add(languageId);
     }
 
     public static LanguageTabRequestItem createNewLanguageTab(
